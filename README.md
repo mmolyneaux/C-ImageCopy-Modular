@@ -1,7 +1,5 @@
-# C-Image-Open-Copy
-Opening and Copying an Image in C
-
-Followed along from Udemy Cource: C Image Processing
+C-ImageCopy-Modular
+Copied from C-Image-Open-Copy
 
 Compile: gcc -o imagecopy main.c
 
