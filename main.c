@@ -12,15 +12,18 @@ typedef struct {
     unsigned int bitDepth;
     bool CT_EXISTS;
     unsigned char colorTable[CT_SIZE];
-    unsigned char *imageBuffer;
+    unsigned char *imageBufferPtr;
 } bitmap;
 
-void readImage(char *filename1, bitmap *bitmapIn) {
+bool readImage(char *filename1, bitmap *bitmapIn) {
+    bool imageRead = false;
     printf("readImage: %d\n", bitmapIn->width);
     FILE *streamIn = fopen(filename1, "rb");
     if (streamIn == NULL) {
         printf("Error opening file!\n");
-    } // TODO: need to return error from here.
+        return imageRead;
+    }
+    imageRead = true; // TODO: need to return error from here.
 
     for (int i = 0; i < HEADER_SIZE; i++) {
         bitmapIn->header[i] = getc(streamIn);
@@ -41,11 +44,12 @@ void readImage(char *filename1, bitmap *bitmapIn) {
     if (bitmapIn->CT_EXISTS) {
         fread(bitmapIn->colorTable, sizeof(char), CT_SIZE, streamIn);
     }
-    bitmapIn->imageBuffer = (char *)malloc(IMAGE_SIZE);
+    bitmapIn->imageBufferPtr = (char *)malloc(IMAGE_SIZE);
     // unsigned char buffer[IMAGE_SIZE];
 
-    fread(bitmapIn->imageBuffer, sizeof(char), IMAGE_SIZE, streamIn);
+    fread(bitmapIn->imageBufferPtr, sizeof(char), IMAGE_SIZE, streamIn);
     fclose(streamIn);
+    return imageRead = true;
 }
 
 int main(int argc, char *argv[]) {
@@ -61,32 +65,41 @@ int main(int argc, char *argv[]) {
         filename2 = argv[2];
         printf("Filename2: %s\n", filename2);
     }
-    bitmap bitmapIn;
-    readImage(filename1, &bitmapIn);
+    
 
-    // width starts at address of byte(char) 18, which is then cast to an int*,
-    // so it can be dereferenced into an int, so it is cast to a 4 byte int
-    // instead stead of a single byte from the char header array. Then the
-    // height can be retreived from the next 4 byts and so on.
+bitmap bitmapIn = {.header = {0},
+                   .width = 0,
+                   .height = 0,
+                   .bitDepth = 0,
+                   .CT_EXISTS = false,
+                   .colorTable = {0},
+                   .imageBufferPtr = NULL};
 
-    // if the bit depth is less than or equal to 8 then we need to read the
-    // color table. The read content is going to be stored in colorTable. Not
-    // all bitmap images have color tables.
+bool imageRead = readImage(filename1, &bitmapIn);
 
-    FILE *streamOut = fopen(filename2, "wb");
-    fwrite(bitmapIn.header, sizeof(char), HEADER_SIZE, streamOut);
+// width starts at address of byte(char) 18, which is then cast to an int*,
+// so it can be dereferenced into an int, so it is cast to a 4 byte int
+// instead stead of a single byte from the char header array. Then the
+// height can be retreived from the next 4 byts and so on.
 
-    if (bitmapIn.CT_EXISTS) {
-        fwrite(bitmapIn.colorTable, sizeof(char), CT_SIZE, streamOut);
-    }
-    unsigned int imageSize = bitmapIn.width * bitmapIn.height;
-    fwrite(bitmapIn.imageBuffer, sizeof(char), imageSize, streamOut);
-    fclose(streamOut);
+// if the bit depth is less than or equal to 8 then we need to read the
+// color table. The read content is going to be stored in colorTable. Not
+// all bitmap images have color tables.
 
-    printf("width: %d\n", bitmapIn.width);
-    printf("height: %d\n", bitmapIn.height);
-    printf("bitDepth: %d\n", bitmapIn.bitDepth);
+FILE *streamOut = fopen(filename2, "wb");
+fwrite(bitmapIn.header, sizeof(char), HEADER_SIZE, streamOut);
 
-    // free(bitmapIn.imageBuffer);
-    return 0;
+if (bitmapIn.CT_EXISTS) {
+    fwrite(bitmapIn.colorTable, sizeof(char), CT_SIZE, streamOut);
+}
+unsigned int imageSize = bitmapIn.width * bitmapIn.height;
+fwrite(bitmapIn.imageBufferPtr, sizeof(char), imageSize, streamOut);
+fclose(streamOut);
+
+printf("width: %d\n", bitmapIn.width);
+printf("height: %d\n", bitmapIn.height);
+printf("bitDepth: %d\n", bitmapIn.bitDepth);
+
+// free(bitmapIn.imageBufferPtr);
+return 0;
 }
