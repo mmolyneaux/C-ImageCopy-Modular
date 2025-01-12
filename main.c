@@ -16,6 +16,22 @@ typedef struct {
     unsigned char *imageBufferPtr;
 } bitmap;
 
+// helper function, verify a filename ends with extension.
+bool endsWith(char *str, const char *ext) {
+    if (!str || !ext) {
+        return false;
+    }
+    size_t len_str = strlen(str);
+    size_t len_ext = strlen(ext);
+
+    // Good check to make sure the strings weren't given reversed.
+    if (len_ext > len_str) {
+        return false;
+    }
+
+    return strcmp(str + len_str - len_ext, ext) == 0;
+}
+
 bool readImage(char *filename1, bitmap *bitmapIn) {
     bool imageRead = false;
     printf("readImage: %d\n", bitmapIn->width);
@@ -24,7 +40,7 @@ bool readImage(char *filename1, bitmap *bitmapIn) {
         printf("Error opening file!\n");
         return imageRead; // false
     }
-    imageRead = true; 
+    imageRead = true;
 
     for (int i = 0; i < HEADER_SIZE; i++) {
         bitmapIn->header[i] = getc(streamIn);
@@ -62,22 +78,35 @@ int main(int argc, char *argv[]) {
     if (argc > 1) {
         filename1 = argv[1];
         printf("Filename1: %s\n", filename1);
+
+        // confirm filename1 ends with extension
+        if (!endsWith(filename1, extension)) {
+            printf("%s does not end with %s", filename1, extension);
+            return -1;
+        }
     }
 
     // If second filename exists from argv point to that.
     if (argc > 2) {
         filename2 = argv[2];
+        printf("Filename2: %s\n", filename2);
+        // confirm filename2 ends with extension
+        if (!endsWith(filename2, extension)) {
+            printf("%s does not end with %s", filename2, extension);
+            return -1;
+        }
+    }
+    // else create a filename based on the first and allocate memory for the
+    // new name.
 
-        // else create a filename based on the first and allocate memory for the
-        // new name.
-    } else {
+    else {
         // Finds the last position of the  '.' in the filename
         char *dot_pos = strrchr(filename1, '.');
         if (dot_pos == NULL) {
             printf("\".\" not found in filename.\n");
             return -1;
         }
-        
+
         // Calculate the length of the parts
         size_t base_len = dot_pos - filename1;
         size_t suffix_len = strlen(suffix);
@@ -111,23 +140,24 @@ int main(int argc, char *argv[]) {
 
     bool imageRead = readImage(filename1, &bitmapIn);
 
-    // width starts at address of byte(char) 18, which is then cast to an int*,
-    // so it can be dereferenced into an int, so it is cast to a 4 byte int
-    // instead stead of a single byte from the char header array. Then the
-    // height can be retreived from the next 4 byts and so on.
+    // width starts at address of byte(char) 18, which is then cast to an
+    // int*, so it can be dereferenced into an int, so it is cast to a 4
+    // byte int instead stead of a single byte from the char header array.
+    // Then the height can be retreived from the next 4 byts and so on.
 
     // if the bit depth is less than or equal to 8 then we need to read the
-    // color table. The read content is going to be stored in colorTable. Not
-    // all bitmap images have color tables.
+    // color table. The read content is going to be stored in colorTable.
+    // Not all bitmap images have color tables.
 
     FILE *streamOut = fopen(filename2, "wb");
-    free(filename2);
+    printf("Filename2: %s\n", filename2);
+    // free(filename2); //this may or may not be dynamically allocated.
     fwrite(bitmapIn.header, sizeof(char), HEADER_SIZE, streamOut);
 
     if (bitmapIn.CT_EXISTS) {
         fwrite(bitmapIn.colorTable, sizeof(char), CT_SIZE, streamOut);
     }
-    unsigned int imageSize = bitmapIn.width * bitmapIn.height;
+    size_t imageSize = bitmapIn.width * bitmapIn.height;
     fwrite(bitmapIn.imageBufferPtr, sizeof(char), imageSize, streamOut);
     fclose(streamOut);
 
