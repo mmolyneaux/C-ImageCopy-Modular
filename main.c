@@ -22,9 +22,9 @@ bool readImage(char *filename1, bitmap *bitmapIn) {
     FILE *streamIn = fopen(filename1, "rb");
     if (streamIn == NULL) {
         printf("Error opening file!\n");
-        return imageRead;
+        return imageRead; // false
     }
-    imageRead = true; // TODO: need to return error from here.
+    imageRead = true; 
 
     for (int i = 0; i < HEADER_SIZE; i++) {
         bitmapIn->header[i] = getc(streamIn);
@@ -36,7 +36,6 @@ bool readImage(char *filename1, bitmap *bitmapIn) {
 
     const int IMAGE_SIZE = bitmapIn->width * bitmapIn->height;
 
-    bitmapIn->CT_EXISTS = false; // should already be initialized somewhere.
     if (bitmapIn->bitDepth <=
         8) { // by definition of bitmap, <= 8 has a color table
         bitmapIn->CT_EXISTS = true;
