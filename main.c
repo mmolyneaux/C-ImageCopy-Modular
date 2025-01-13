@@ -32,6 +32,11 @@ bool endsWith(char *str, const char *ext) {
     return strcmp(str + len_str - len_ext, ext) == 0;
 }
 
+// free memory allocated for bitmap structs.
+void freeImage(bitmap *bmp){
+    free(bmp->imageBuffer);
+    bmp->imageBuffer == NULL; // Avoid dangling pointer.
+}
 // returns false early and prints an error message if operation not complete.
 // returns true on success of the operation.
 bool readImage(char *filename1, bitmap *bitmapIn) {
@@ -74,6 +79,7 @@ int main(int argc, char *argv[]) {
 
     char *filename1 = NULL;
     char *filename2 = NULL;
+    bool freeFilename2 = false; //this may or may not be dynamically allocated.
     const char *suffix = "_copy";
     const char *extension = ".bmp";
 
@@ -119,6 +125,7 @@ int main(int argc, char *argv[]) {
             printf("Memory allocation for output filename has failed.\n");
             return -1;
         }
+        freeFilename2 = true;
         // Copy the base part of filename1 and append the suffix and extension.
         // strncpy copies the first base_len number of chars from filename1 into
         // filename2
@@ -151,7 +158,12 @@ int main(int argc, char *argv[]) {
 
     FILE *streamOut = fopen(filename2, "wb");
     printf("Filename2: %s\n", filename2);
-    // free(filename2); //this may or may not be dynamically allocated.
+    
+    if(freeFilename2 && filename2 != NULL){
+        free(filename2); 
+        filename2 = NULL;
+        freeFilename2 = false;
+    }
     fwrite(bitmapIn.header, sizeof(char), HEADER_SIZE, streamOut);
 
     if (bitmapIn.CT_EXISTS) {
@@ -160,13 +172,13 @@ int main(int argc, char *argv[]) {
     size_t imageSize = bitmapIn.width * bitmapIn.height;
     fwrite(bitmapIn.imageBuffer, sizeof(char), imageSize, streamOut);
     fclose(streamOut);
-    //freeImage(bitmapIn);
+    freeBitmap(&bitmapIn);
 
     printf("width: %d\n", bitmapIn.width);
     printf("height: %d\n", bitmapIn.height);
     printf("bitDepth: %d\n", bitmapIn.bitDepth);
 
-    // free(bitmapIn.imageBuffer);
+    
 
     return 0;
 }
