@@ -2,15 +2,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #define CT_SIZE 1024   // Bitmap color table size
 #define HEADER_SIZE 54 // Bitmap file header size
 
 typedef struct {
     unsigned char header[HEADER_SIZE];
-    unsigned int width;
-    unsigned int height;
-    unsigned int bitDepth;
+    uint32_t width;
+    uint32_t height;
+    uint32_t bitDepth;
     bool CT_EXISTS;
     unsigned char colorTable[CT_SIZE];
     unsigned char *imageBuffer;
@@ -59,7 +60,7 @@ bool readImage(char *filename1, bitmap *bitmapIn) {
     bitmapIn->height = *(int *)&bitmapIn->header[22];
     bitmapIn->bitDepth = *(int *)&bitmapIn->header[28];
 
-    const int IMAGE_SIZE = bitmapIn->width * bitmapIn->height;
+    const size_t IMAGE_SIZE = bitmapIn->width * bitmapIn->height;
 
     // if the bit depth is less than or equal to 8 then we need to read the
     // color table. The read content is going to be stored in colorTable.
