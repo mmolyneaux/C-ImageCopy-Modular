@@ -33,30 +33,37 @@ bool endsWith(char *str, const char *ext) {
 }
 
 // free memory allocated for bitmap structs.
-void freeImage(bitmap *bmp){
+void freeImage(bitmap *bmp) {
     free(bmp->imageBuffer);
     bmp->imageBuffer == NULL; // Avoid dangling pointer.
 }
 // returns false early and prints an error message if operation not complete.
 // returns true on success of the operation.
 bool readImage(char *filename1, bitmap *bitmapIn) {
-   
+
     FILE *streamIn = fopen(filename1, "rb");
     if (streamIn == NULL) {
         printf("Error opening file or file not found!\n");
-        return false; 
+        return false;
     }
 
     for (int i = 0; i < HEADER_SIZE; i++) {
         bitmapIn->header[i] = getc(streamIn);
     }
 
+    // width starts at address of byte(char) 18, which is then cast to an
+    // int*, so it can be dereferenced into an int, so it is cast to a 4
+    // byte int instead stead of a single byte from the char header array.
+    // Then the height can be retreived from the next 4 byts and so on.
     bitmapIn->width = *(int *)&bitmapIn->header[18];
     bitmapIn->height = *(int *)&bitmapIn->header[22];
     bitmapIn->bitDepth = *(int *)&bitmapIn->header[28];
 
     const int IMAGE_SIZE = bitmapIn->width * bitmapIn->height;
 
+    // if the bit depth is less than or equal to 8 then we need to read the
+    // color table. The read content is going to be stored in colorTable.
+    // Not all bitmap images have color tables.
     if (bitmapIn->bitDepth <=
         8) { // by definition of bitmap, <= 8 has a color table
         bitmapIn->CT_EXISTS = true;
@@ -65,8 +72,8 @@ bool readImage(char *filename1, bitmap *bitmapIn) {
     if (bitmapIn->CT_EXISTS) {
         fread(bitmapIn->colorTable, sizeof(char), CT_SIZE, streamIn);
     }
-    bitmapIn->imageBuffer = (char *)calloc(IMAGE_SIZE,sizeof(char));
-    if (bitmapIn->imageBuffer == NULL){
+    bitmapIn->imageBuffer = (char *)calloc(IMAGE_SIZE, sizeof(char));
+    if (bitmapIn->imageBuffer == NULL) {
         return false;
     }
 
@@ -75,11 +82,25 @@ bool readImage(char *filename1, bitmap *bitmapIn) {
     return true;
 }
 
+void writeImage(char *filename, bitmap *bitmapIn) {
+    FILE *streamOut = fopen(filename, "wb");
+    printf("Filename2: %s\n", filename);
+
+    fwrite(bitmapIn->header, sizeof(char), HEADER_SIZE, streamOut);
+
+    if (bitmapIn->CT_EXISTS) {
+        fwrite(bitmapIn->colorTable, sizeof(char), CT_SIZE, streamOut);
+    }
+    size_t imageSize = bitmapIn->width * bitmapIn->height;
+    fwrite(bitmapIn->imageBuffer, sizeof(char), imageSize, streamOut);
+    fclose(streamOut);
+}
+
 int main(int argc, char *argv[]) {
 
     char *filename1 = NULL;
     char *filename2 = NULL;
-    bool freeFilename2 = false; //this may or may not be dynamically allocated.
+    bool freeFilename2 = false; // this may or may not be dynamically allocated.
     const char *suffix = "_copy";
     const char *extension = ".bmp";
 
@@ -118,7 +139,7 @@ int main(int argc, char *argv[]) {
         size_t base_len = dot_pos - filename1;
         size_t suffix_len = strlen(suffix);
         size_t extention_len = strlen(extension);
-      
+
         filename2 = (char *)calloc(base_len + suffix_len + extention_len + 1,
                                    sizeof(char));
         if (filename2 == NULL) {
@@ -134,7 +155,6 @@ int main(int argc, char *argv[]) {
         // strcat because strncpy doesn't null terminate.)
         strcpy(filename2 + base_len, suffix);
         strcpy(filename2 + base_len + suffix_len, extension);
-
     }
 
     bitmap bitmapIn = {.header = {0},
@@ -146,39 +166,24 @@ int main(int argc, char *argv[]) {
                        .imageBuffer = NULL};
 
     bool imageRead = readImage(filename1, &bitmapIn);
+    if (!imageRead) {
+        printf("Image read failed.\n");
+        return -1;
+    }
 
-    // width starts at address of byte(char) 18, which is then cast to an
-    // int*, so it can be dereferenced into an int, so it is cast to a 4
-    // byte int instead stead of a single byte from the char header array.
-    // Then the height can be retreived from the next 4 byts and so on.
+    writeImage(filename2, &bitmapIn);
 
-    // if the bit depth is less than or equal to 8 then we need to read the
-    // color table. The read content is going to be stored in colorTable.
-    // Not all bitmap images have color tables.
-
-    FILE *streamOut = fopen(filename2, "wb");
-    printf("Filename2: %s\n", filename2);
-    
-    if(freeFilename2 && filename2 != NULL){
-        free(filename2); 
+    if (freeFilename2 && filename2 != NULL) {
+        free(filename2);
         filename2 = NULL;
         freeFilename2 = false;
     }
-    fwrite(bitmapIn.header, sizeof(char), HEADER_SIZE, streamOut);
 
-    if (bitmapIn.CT_EXISTS) {
-        fwrite(bitmapIn.colorTable, sizeof(char), CT_SIZE, streamOut);
-    }
-    size_t imageSize = bitmapIn.width * bitmapIn.height;
-    fwrite(bitmapIn.imageBuffer, sizeof(char), imageSize, streamOut);
-    fclose(streamOut);
-    freeBitmap(&bitmapIn);
+    freeImage(&bitmapIn);
 
     printf("width: %d\n", bitmapIn.width);
     printf("height: %d\n", bitmapIn.height);
     printf("bitDepth: %d\n", bitmapIn.bitDepth);
-
-    
 
     return 0;
 }
