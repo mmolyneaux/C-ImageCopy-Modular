@@ -13,7 +13,7 @@ typedef struct {
     unsigned int bitDepth;
     bool CT_EXISTS;
     unsigned char colorTable[CT_SIZE];
-    unsigned char *imageBufferPtr;
+    unsigned char *imageBuffer;
 } bitmap;
 
 // helper function, verify a filename ends with extension.
@@ -32,15 +32,15 @@ bool endsWith(char *str, const char *ext) {
     return strcmp(str + len_str - len_ext, ext) == 0;
 }
 
+// returns false early and prints an error message if operation not complete.
+// returns true on success of the operation.
 bool readImage(char *filename1, bitmap *bitmapIn) {
-    bool imageRead = false;
-    printf("readImage: %d\n", bitmapIn->width);
+   
     FILE *streamIn = fopen(filename1, "rb");
     if (streamIn == NULL) {
-        printf("Error opening file!\n");
-        return imageRead; // false
+        printf("Error opening file or file not found!\n");
+        return false; 
     }
-    imageRead = true;
 
     for (int i = 0; i < HEADER_SIZE; i++) {
         bitmapIn->header[i] = getc(streamIn);
@@ -60,12 +60,14 @@ bool readImage(char *filename1, bitmap *bitmapIn) {
     if (bitmapIn->CT_EXISTS) {
         fread(bitmapIn->colorTable, sizeof(char), CT_SIZE, streamIn);
     }
-    bitmapIn->imageBufferPtr = (char *)malloc(IMAGE_SIZE);
-    // unsigned char buffer[IMAGE_SIZE];
+    bitmapIn->imageBuffer = (char *)calloc(IMAGE_SIZE,sizeof(char));
+    if (bitmapIn->imageBuffer == NULL){
+        return false;
+    }
 
-    fread(bitmapIn->imageBufferPtr, sizeof(char), IMAGE_SIZE, streamIn);
+    fread(bitmapIn->imageBuffer, sizeof(char), IMAGE_SIZE, streamIn);
     fclose(streamIn);
-    return imageRead = true;
+    return true;
 }
 
 int main(int argc, char *argv[]) {
@@ -89,7 +91,6 @@ int main(int argc, char *argv[]) {
     // If second filename exists from argv point to that.
     if (argc > 2) {
         filename2 = argv[2];
-        printf("Filename2: %s\n", filename2);
         // confirm filename2 ends with extension
         if (!endsWith(filename2, extension)) {
             printf("%s does not end with %s", filename2, extension);
@@ -111,7 +112,7 @@ int main(int argc, char *argv[]) {
         size_t base_len = dot_pos - filename1;
         size_t suffix_len = strlen(suffix);
         size_t extention_len = strlen(extension);
-        printf("Filename1: %s", filename1);
+      
         filename2 = (char *)calloc(base_len + suffix_len + extention_len + 1,
                                    sizeof(char));
         if (filename2 == NULL) {
@@ -127,7 +128,6 @@ int main(int argc, char *argv[]) {
         strcpy(filename2 + base_len, suffix);
         strcpy(filename2 + base_len + suffix_len, extension);
 
-        printf("Filename2: %s\n", filename2);
     }
 
     bitmap bitmapIn = {.header = {0},
@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
                        .bitDepth = 0,
                        .CT_EXISTS = false,
                        .colorTable = {0},
-                       .imageBufferPtr = NULL};
+                       .imageBuffer = NULL};
 
     bool imageRead = readImage(filename1, &bitmapIn);
 
@@ -158,14 +158,15 @@ int main(int argc, char *argv[]) {
         fwrite(bitmapIn.colorTable, sizeof(char), CT_SIZE, streamOut);
     }
     size_t imageSize = bitmapIn.width * bitmapIn.height;
-    fwrite(bitmapIn.imageBufferPtr, sizeof(char), imageSize, streamOut);
+    fwrite(bitmapIn.imageBuffer, sizeof(char), imageSize, streamOut);
     fclose(streamOut);
+    //freeImage(bitmapIn);
 
     printf("width: %d\n", bitmapIn.width);
     printf("height: %d\n", bitmapIn.height);
     printf("bitDepth: %d\n", bitmapIn.bitDepth);
 
-    // free(bitmapIn.imageBufferPtr);
+    // free(bitmapIn.imageBuffer);
 
     return 0;
 }
